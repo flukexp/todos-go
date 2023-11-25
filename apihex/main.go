@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"log/slog"
+	_ "modernc.org/sqlite"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -17,13 +19,21 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	db, err := sql.Open("sqlite", "./database.sqlite")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
 	r := gin.Default()
 	message := "pong"
 	// r.GET("/ping",handler(message).pingPongHandler)
 	r.GET("/ping", func(ctx *gin.Context) {
 		pingpong(message, ctx)
 	})
-	r.GET("/todos", todo.List)
+
+	handler := todo.NewHandler(db)
+	r.GET("/todos", handler.List)
 	r.GET("/transfer/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		slog.Info("parsing...", slog.String("id", id))
